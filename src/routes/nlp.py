@@ -18,7 +18,7 @@ nlp_router = APIRouter(
 )
 
 @nlp_router.post("/index/push/{project_id}")
-async def index_project(request: Request, project_id: str, push_request: PushRequest):
+async def index_project(request: Request, project_id: int, push_request: PushRequest):
 
     project_model = await ProjectModel.create_instance(
         db_client=request.app.state.db_client
@@ -49,7 +49,7 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     first_iteration = True
 
     while has_records:
-        page_chunks = await chunk_model.get_chunks_by_project_id(project_id=project.id, page_no=page_no,)
+        page_chunks = await chunk_model.get_chunks_by_project_id(project_id=project.project_id, page_no=page_no,)
         if len(page_chunks):
             page_no += 1
 
@@ -80,7 +80,7 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     )
 
 @nlp_router.get("/index/info/{project_id}")
-async def get_project_index_info(request: Request, project_id: str):
+async def get_project_index_info(request: Request, project_id: int):
     project_model = await ProjectModel.create_instance(
         db_client=request.app.state.db_client
     )
@@ -109,7 +109,7 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
 @nlp_router.post("/index/search/{project_id}")
-async def search_project_index(request: Request, project_id: str, search_request: SearchRequest):
+async def search_project_index(request: Request, project_id: int, search_request: SearchRequest):
     project_model = await ProjectModel.create_instance(
         db_client=request.app.state.db_client
     )
@@ -149,7 +149,7 @@ async def search_project_index(request: Request, project_id: str, search_request
     )
 
 @nlp_router.post("/index/answer/{project_id}")
-async def answer_rag_question(request: Request, project_id: str, search_request: SearchRequest):
+async def answer_rag_question(request: Request, project_id: int, search_request: SearchRequest):
     project_model = await ProjectModel.create_instance(
         db_client=request.app.state.db_client
     )
