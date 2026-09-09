@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
-from async_pymongo import AsyncClient  # type: ignore
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from helpers.config import Settings
 from routes import base, data, nlp
@@ -15,9 +16,12 @@ from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 async def lifespan(app: FastAPI):
     settings = Settings() # type: ignore
 
-    #MongoDB connection
-    app.state.mongo_conn = AsyncClient(settings.MONGODB_URI) 
-    app.state.db_client = app.state.mongo_conn[settings.MONGODB_DATABASE] 
+    #Postgres connection
+    postgres_conn = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+    app.state.db_engine = create_async_engine(postgres_conn) 
+    app.state.db_client = sessionmaker(
+        app.state.db_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     # LLM and VectorDB clients
     llm_provider_factory = LLMProviderFactory(settings)
@@ -41,7 +45,7 @@ async def lifespan(app: FastAPI):
     
     yield
 
-    app.state.mongo_conn.close()
+    app.state.db_engine.dispose()
     app.state.vectordb_client.disconnect()
 
 
