@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     GENERATION_DEFAULT_MAX_TOKENS: int | None = None
     GENERATION_DEFAULT_TEMP: float | None = None
 
-
+    VECTOR_DB_BACKEND_LITERAL: list | None = None
     VECTOR_DB_BACKEND: str
     VECTOR_DB_PATH: str
     VECTOR_DB_DISTANCE_METHOD: str | None = None
