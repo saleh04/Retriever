@@ -5,7 +5,7 @@ import aiofiles  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 
-from controllers import DataController, ProcessController
+from controllers import DataController, NLPController, ProcessController
 from helpers.config import Settings, get_settings
 from models import AssetType, ResponseSignal
 from models.AssetModel import AssetModel
@@ -48,7 +48,7 @@ async def upload_file(request: Request, project_id: int, file: UploadFile,
         )
 
     file_path, file_id = datacontroller.generate_unique_filepath(
-        original_filename=file.filename or "unnamed_file", project_id=project_id)
+        original_filename=file.filename or "unnamed_file", project_id=str(project_id))
 
     try:
         async with aiofiles.open(file_path, 'wb') as f:
@@ -99,6 +99,11 @@ async def process_endpoint(request: Request, project_id: int, process_request: P
     asset_model = await AssetModel.create_instance(
         db_client=request.app.state.db_client
     )
+    
+    nlp_controller = NLPController(vectordb_client=request.app.state.vectordb_client,
+                                   generation_client=request.app.state.generation_client,
+                                   embedding_client=request.app.state.embedding_client,
+                                   template_parser=request.app.state.template_parser)
 
     project_files_ids = {}
     if process_request.file_id:
@@ -128,10 +133,17 @@ async def process_endpoint(request: Request, project_id: int, process_request: P
             content={"message": ResponseSignal.NO_FILE_ERROR.value}
             )
 
-    process_controller = ProcessController(project_id=project_id)
+    process_controller = ProcessController(project_id=str(project_id))
 
     if do_reset:
-        _= await chunk_model.delete_chunks_by_project_id(project_id=project.project_id)
+        
+        collection_name = nlp_controller.create_collection_name(project_id=str(project.project_id))
+        
+        _ = await request.app.state.vectordb_client.delete_collection(collection_name=collection_name)
+        
+        _= await chunk_model.delete_chunks_by_project_id(
+            project_id=project.project_id
+        )
 
     no_records = 0
     no_files = 0
