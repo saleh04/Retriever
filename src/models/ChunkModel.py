@@ -1,5 +1,5 @@
 from bson.objectid import ObjectId  # noqa: N999
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.future import select
 
 from .BaseDataModel import BaseDataModel
@@ -55,7 +55,11 @@ class chunkModel(BaseDataModel):
             records = result.scalars().all()
         return records
 
-    
-
-
-
+    async def get_total_chunks_count(self, project_id: ObjectId):
+        record = 0
+        async with self.db_client() as session:
+            query = select(func.count(DataChunk.chunk_id)).where(DataChunk.chunk_project_id == project_id)
+            result = await session.execute(query)
+            record = result.scalar()
+            
+        return record 
