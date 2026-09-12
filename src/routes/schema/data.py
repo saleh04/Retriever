@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class ProcessRequest(BaseModel):
-    file_id: str = None
+    file_id: str | None = None
     chunk_size: int | None = 100
     overlap: int | None = 20
     do_reset: bool = False
