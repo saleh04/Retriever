@@ -11,7 +11,7 @@ class DistanceMethodEnums(Enum):
 
 class PgVectorTableSchemeEnums(Enum):
     ID = "id"
-    TEXT = "Text"
+    TEXT = "text"
     VECTOR = "vector"
     CHUNK_ID = "chunk_id"
     METADATA = "metadata"
