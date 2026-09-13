@@ -147,10 +147,11 @@ async def search_project_index(request: Request, project_id: int, search_request
     search_results = await nlp_controller.search_in_vector_db(
         project=project,
         query=search_request.query,
-        limit=search_request.limit
+        limit=search_request.limit,
+        min_score=search_request.min_score
     )
 
-    if not search_results:
+    if search_results is None:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"message" : ResponseSignal.SEARCH_RESULTS_ERROR.value}
@@ -159,7 +160,7 @@ async def search_project_index(request: Request, project_id: int, search_request
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={"message" : ResponseSignal.SEARCH_RESULTS_SUCCESS.value,
-                 "search_results" : [result.dict() for result in search_results]
+                 "search_results" : [result.model_dump() for result in search_results]
         }
     )
 
@@ -185,13 +186,14 @@ async def answer_rag_question(request: Request, project_id: int, search_request:
             content={"message" : ResponseSignal.PROJECT_NOT_FOUND_ERROR.value}
         )
 
-    answer, full_prompt, chat_history = await nlp_controller.answer_rag_question(
+    answer, _, _ = await nlp_controller.answer_rag_question(
         project=project,
         query=search_request.query,
-        limit=search_request.limit
+        limit=search_request.limit,
+        min_score=search_request.min_score,
     )
 
-    if not answer:
+    if answer is None:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"message" : ResponseSignal.RAG_ANSWER_ERROR.value}
@@ -202,7 +204,5 @@ async def answer_rag_question(request: Request, project_id: int, search_request:
         content={
             "message" : ResponseSignal.RAG_ANSWER_SUCCESS.value,
             "answer" : answer,
-            "full_prompt" : full_prompt,
-            "chat_history" : chat_history
         }
     )
