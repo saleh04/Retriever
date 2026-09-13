@@ -29,10 +29,17 @@ class PgVectorDB(VectorDBInterface):
             distance_method = PgVectorDistanceMethodEnums.DOT.value
         self.distance_method = distance_method
         
-        self.pgvector_table_prefex = PgVectorTableSchemeEnums._PREFEX.value
+        self.pgvector_table_prefix = PgVectorTableSchemeEnums._PREFIX.value
         self.default_index_name = lambda collection_name: f"{collection_name}_vector_idx"
 
         self.logger = logging.getLogger("uvicorn")
+    
+    @property
+    def distance_operator(self):
+        if self.distance_method == PgVectorDistanceMethodEnums.COSINE.value:
+            return "<=>"
+        else:
+            return "<->"
         
     async def connect(self):
         async with self.db_client() as session:
@@ -57,12 +64,15 @@ class PgVectorDB(VectorDBInterface):
     async def list_all_collections(self) -> list:
         async with self.db_client() as session, session.begin():
             list_tbl = sql_text("SELECT * FROM pg_tables WHERE tablename LIKE :prefix")
-            results = await session.execute(list_tbl, {"prefex": self.pgvector_table_prefex})
+            results = await session.execute(list_tbl, {"prefix": self.pgvector_table_prefix})
             record = results.scalars().all()
         return record
     
     async def get_collection_info(self, collection_name: str) -> dict:
         async with self.db_client() as session, session.begin():
+            
+            if not await self.is_collection_existed(collection_name=collection_name):
+                return None
             
             table_info_sql = sql_text('''
                SELECT schemaname, tablename, tableowner, tablespace, hasindexes
@@ -234,18 +244,16 @@ class PgVectorDB(VectorDBInterface):
             self.logger.error(f"Can not insert new records to non-existed collection: {collection_name}")
             return False
         
+        if record_ids is None:
+            self.logger.error(f"Can not insert batch without chunk_ids: {collection_name}")
+            return False
+        
         if len(vectors) != len(record_ids):
             self.logger.error(f"Can not insert batch without chunk_ids: {collection_name}")
             return False
         
         if metadata is None:
             metadata = [None] * len(texts)
-        
-        if record_ids is None:
-            self.logger.error(
-                f"Can not insert batch without chunk_ids: {collection_name}"
-            )
-            return False
         
         if len(texts) != len(vectors) or len(texts) != len(record_ids):
             self.logger.error(
@@ -295,10 +303,19 @@ class PgVectorDB(VectorDBInterface):
         vector = "[" + ",".join([str(x) for x in vector]) + "]"
         async with self.db_client() as session, session.begin():
             
+            op = self.distance_operator
+            
+            if op == "<=>":
+                # Cosine Similarity = 1 - Cosine Distance
+                score_formula = f"1 - ({PgVectorTableSchemeEnums.VECTOR.value} {op} :vector)"
+            else:
+                # L2 Distance / Score
+                score_formula = f"({PgVectorTableSchemeEnums.VECTOR.value} {op} :vector) * -1"
+            
             search_tbl = sql_text(
-                f"SELECT {PgVectorTableSchemeEnums.TEXT.value} as text, 1 - ({PgVectorTableSchemeEnums.VECTOR.value} <=> :vector) as score "
+                f"SELECT {PgVectorTableSchemeEnums.TEXT.value} AS text, {score_formula} AS score "
                 f"FROM {collection_name} "
-                f"ORDER BY score DESC "
+                f"ORDER BY {PgVectorTableSchemeEnums.VECTOR.value} {op} :vector ASC "
                 f"LIMIT :limit"
             )
             
@@ -306,7 +323,7 @@ class PgVectorDB(VectorDBInterface):
             records = results.fetchall()
             
             if not records:
-                return None
+                return []
             
             return [
                 RetrievedDocument(

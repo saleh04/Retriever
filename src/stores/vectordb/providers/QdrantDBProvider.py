@@ -55,7 +55,7 @@ class QdrantDB(VectorDBInterface):
         if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.info(f"Creating collection: {collection_name}")
             
-            await self.client.create_collection(collection_name=collection_name,
+            self.client.create_collection(collection_name=collection_name,
                                       vectors_config=models.VectorParams(
                                       size=embedding_size,
                                       distance=self.distance_method))
@@ -67,7 +67,7 @@ class QdrantDB(VectorDBInterface):
                    metadata: dict | None = None,
                    record_id: str | None = None):
 
-        if not self.is_collection_existed(collection_name=collection_name):
+        if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
             return False
 
@@ -136,7 +136,7 @@ class QdrantDB(VectorDBInterface):
         ).points
 
         if not hits or len(hits) == 0:
-            return None
+            return []
 
         return [
             RetrievedDocument(
