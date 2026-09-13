@@ -10,10 +10,11 @@ class TemplateParser:
         self.set_language(language)
 
     
-    def set_language(self, language: str | None):
+    def set_language(self, language: str | None=None):
         if not language:
-            self.language = self.default_language
-
+            language = self.default_language
+        self.language = language
+        
         language_path = os.path.join(self.current_path, "locales", language)
         if os.path.exists(language_path):
             self.language = language
