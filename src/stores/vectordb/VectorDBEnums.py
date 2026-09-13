@@ -15,11 +15,11 @@ class PgVectorTableSchemeEnums(Enum):
     VECTOR = "vector"
     CHUNK_ID = "chunk_id"
     METADATA = "metadata"
-    _PREFEX = "pgvector"
+    _PREFIX = "pgvector"
 
 class PgVectorDistanceMethodEnums(Enum):
     COSINE = "vector_cosine_ops"
-    DOT = "vector_l2_ops"
+    DOT = "vector_ip_ops"
 
 class PgvectorIndexTypeEnums(Enum):
     HNSW = "HNSW"
