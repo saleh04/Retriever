@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     
     yield
 
-    app.state.db_engine.dispose()
+    await app.state.db_engine.dispose()
     await app.state.vectordb_client.disconnect()
 
 
