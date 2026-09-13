@@ -27,7 +27,7 @@ class chunkModel(BaseDataModel):
 
     async def get_chunk(self, chunk_id:str):
         async with self.db_client() as session:
-            query = await session.execute(select().where(DataChunk.chunk_id == chunk_id))
+            query = await session.execute(select(DataChunk).where(DataChunk.chunk_id == chunk_id))
             chunk = query.scalar_one_or_none()
         return chunk
 
@@ -50,7 +50,15 @@ class chunkModel(BaseDataModel):
 
     async def get_chunks_by_project_id(self, project_id: ObjectId, page_no: int=1, page_size: int=10):
         async with self.db_client() as session:
-            query = select(DataChunk).where(DataChunk.chunk_project_id == project_id).offset((page_no - 1) * page_size).limit(page_size)
+            
+            query = (
+                select(DataChunk)
+                .where(DataChunk.chunk_project_id == project_id)
+                .order_by(DataChunk.chunk_order)
+                .offset((page_no - 1) * page_size)
+                .limit(page_size)
+            )
+            
             result = await session.execute(query)
             records = result.scalars().all()
         return records
