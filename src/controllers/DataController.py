@@ -20,7 +20,7 @@ class DataController(BaseController):
             return False, ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
             
         # Validate file size
-        if file.size > self.app_settings.FILE_ALLOWED_SIZES_MB * self.file_scale:
+        if file.size is not None and file.size > self.app_settings.FILE_ALLOWED_SIZES_MB * self.file_scale:
             return False, ResponseSignal.FILE_SIZE_EXCEEDED.value
 
         return True, ResponseSignal.FILE_VALIDATED_SUCCESS.value
