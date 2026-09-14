@@ -1,6 +1,6 @@
-# Mini-RAG
+# Retriever
 
-Mini-RAG is a FastAPI application that turns uploaded text and PDF files into a searchable knowledge base and uses retrieval-augmented generation (RAG) to answer questions about those files.
+Retriever is a FastAPI application that turns uploaded text and PDF files into a searchable knowledge base and uses retrieval-augmented generation (RAG) to answer questions about those files.
 
 This project is an implementation of the RAG course by Abu Bakr Soliman, with an emphasis on a structured application rather than notebook-only examples. The course playlist is available [here](https://www.youtube.com/playlist?list=PLvLvlVqNQGHCUR2p0b8a0QpVjDUg50wQj).
 
@@ -63,8 +63,8 @@ Run the following commands from the repository root.
 Install [Miniconda](https://www.anaconda.com/docs/getting-started/concepts/anaconda-or-miniconda#quick-command-line-install), then create and activate the environment:
 
 ```bash
-conda create -n mini-rag python=3.12
-conda activate mini-rag
+conda create -n retriever python=3.12
+conda activate retriever
 ```
 
 ### Option B: Python virtual environment
@@ -113,7 +113,7 @@ Edit `src/.env` before starting the application. At minimum, configure the datab
 
 | Variable | Purpose | Example |
 | --- | --- | --- |
-| `APP_NAME` | Application name | `Mini-RAG` |
+| `APP_NAME` | Application name | `Retriever` |
 | `APP_VERSION` | Application version | `0.1.0` |
 | `FILE_ALLOWED_TYPES` | Accepted MIME types | `["text/plain", "application/pdf"]` |
 | `FILE_ALLOWED_SIZES_MB` | Maximum upload size | `10` |
