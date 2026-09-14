@@ -1,6 +1,7 @@
 import json  # noqa: N999
 import logging
 
+from sqlalchemy import bindparam
 from sqlalchemy.sql import text as sql_text
 
 from models.db_schemes import RetrievedDocument
@@ -39,7 +40,7 @@ class PgVectorDB(VectorDBInterface):
         if self.distance_method == PgVectorDistanceMethodEnums.COSINE.value:
             return "<=>"
         else:
-            return "<->"
+            return "<#>"
         
     async def connect(self):
         async with self.db_client() as session:
@@ -54,12 +55,11 @@ class PgVectorDB(VectorDBInterface):
     
     async def is_collection_existed(self, collection_name: str) -> bool:
         
-        records = []
         async with self.db_client() as session, session.begin():
             list_tbl = sql_text("SELECT * FROM pg_tables WHERE tablename = :collection_name")
             results = await session.execute(list_tbl, {"collection_name":collection_name})
-            records = results.scalar_one_or_none()
-        return records
+            record = results.scalar_one_or_none()
+        return record is not None
     
     async def list_all_collections(self) -> list:
         async with self.db_client() as session, session.begin():
@@ -68,7 +68,7 @@ class PgVectorDB(VectorDBInterface):
             record = results.scalars().all()
         return record
     
-    async def get_collection_info(self, collection_name: str) -> dict:
+    async def get_collection_info(self, collection_name: str) -> dict | None:
         async with self.db_client() as session, session.begin():
             
             if not await self.is_collection_existed(collection_name=collection_name):
@@ -108,6 +108,19 @@ class PgVectorDB(VectorDBInterface):
             await session.commit()
             
         return True
+
+    async def delete_by_record_ids(self, collection_name: str, record_ids: list[int]) -> bool:
+        if not record_ids or not await self.is_collection_existed(collection_name):
+            return True
+
+        async with self.db_client() as session, session.begin():
+            delete_sql = sql_text(
+                f"DELETE FROM {collection_name} WHERE {PgVectorTableSchemeEnums.CHUNK_ID.value} IN "
+                ":record_ids"
+            ).bindparams(bindparam("record_ids", expanding=True))
+            await session.execute(delete_sql, {"record_ids": record_ids})
+
+        return True
     
     async def create_collection(self, collection_name:str,
                               embedding_size: int | None = None, do_reset: bool = False):
@@ -125,7 +138,7 @@ class PgVectorDB(VectorDBInterface):
                         f'{PgVectorTableSchemeEnums.TEXT.value} text, '
                         f'{PgVectorTableSchemeEnums.VECTOR.value} vector({embedding_size}), '
                         f'{PgVectorTableSchemeEnums.METADATA.value} jsonb DEFAULT \'{{}}\', '
-                        f'{PgVectorTableSchemeEnums.CHUNK_ID.value} integer, '
+                        f'{PgVectorTableSchemeEnums.CHUNK_ID.value} integer UNIQUE, '
                         f'FOREIGN KEY ({PgVectorTableSchemeEnums.CHUNK_ID.value}) REFERENCES chunks(chunk_id) '
                     ')'
                 )
@@ -175,6 +188,7 @@ class PgVectorDB(VectorDBInterface):
             await session.execute(create_idx)
             await session.commit()
             self.logger.info(f"Index {index_name} created on {collection_name}")
+            return True
     
     async def reset_vector_index(self, collection_name: str, index_type: str = PgvectorIndexTypeEnums.HNSW.value) -> bool:
         
@@ -195,6 +209,8 @@ class PgVectorDB(VectorDBInterface):
             await session.execute(reset_idx)
             await session.commit()
             self.logger.info(f"Index {index_name} reset on {collection_name}")
+            
+        return True
     
     async def insert_one(self, collection_name: str, text: str, vector: list,
                        metadata: dict | None = None,
@@ -217,6 +233,10 @@ class PgVectorDB(VectorDBInterface):
                     f'{PgVectorTableSchemeEnums.METADATA.value}, '
                     f'{PgVectorTableSchemeEnums.CHUNK_ID.value}'
                 ') VALUES (:text, :vector, :metadata, :chunk_id)'
+                f'ON CONFLICT ({PgVectorTableSchemeEnums.CHUNK_ID.value}) DO UPDATE SET '
+                f'{PgVectorTableSchemeEnums.TEXT.value} = EXCLUDED.{PgVectorTableSchemeEnums.TEXT.value}, '
+                f'{PgVectorTableSchemeEnums.VECTOR.value} = EXCLUDED.{PgVectorTableSchemeEnums.VECTOR.value}, '
+                f'{PgVectorTableSchemeEnums.METADATA.value} = EXCLUDED.{PgVectorTableSchemeEnums.METADATA.value}'
             )
             
             metadata_json = json.dumps(metadata, ensure_ascii=False) if metadata is not None else "{}"
@@ -242,7 +262,7 @@ class PgVectorDB(VectorDBInterface):
         
         if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.error(f"Can not insert new records to non-existed collection: {collection_name}")
-            return False
+            return []
         
         if record_ids is None:
             self.logger.error(f"Can not insert batch without chunk_ids: {collection_name}")
@@ -286,7 +306,12 @@ class PgVectorDB(VectorDBInterface):
                                     f'{PgVectorTableSchemeEnums.VECTOR.value}, '
                                     f'{PgVectorTableSchemeEnums.METADATA.value}, '
                                     f'{PgVectorTableSchemeEnums.CHUNK_ID.value}) '
-                                    f'VALUES (:text, :vector, :metadata, :chunk_id)')
+                                    f'VALUES (:text, :vector, :metadata, :chunk_id)'
+                                    f'ON CONFLICT ({PgVectorTableSchemeEnums.CHUNK_ID.value}) DO UPDATE SET '
+                                    f'{PgVectorTableSchemeEnums.TEXT.value} = EXCLUDED.{PgVectorTableSchemeEnums.TEXT.value}, '
+                                    f'{PgVectorTableSchemeEnums.VECTOR.value} = EXCLUDED.{PgVectorTableSchemeEnums.VECTOR.value}, '
+                                    f'{PgVectorTableSchemeEnums.METADATA.value} = EXCLUDED.{PgVectorTableSchemeEnums.METADATA.value}'
+                                    )
                     
                 await session.execute(batch_insert_tbl, values)
                 
@@ -298,9 +323,9 @@ class PgVectorDB(VectorDBInterface):
         
         if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.error(f"Can not insert new records to non-existed collection: {collection_name}")
-            return False
+            return []
         
-        vector = "[" + ",".join([str(x) for x in vector]) + "]"
+        vector_value = "[" + ",".join(str(x) for x in vector) + "]"
         async with self.db_client() as session, session.begin():
             
             op = self.distance_operator
@@ -319,7 +344,7 @@ class PgVectorDB(VectorDBInterface):
                 f"LIMIT :limit"
             )
             
-            results = await session.execute(search_tbl, {"vector": vector, "limit": limit})
+            results = await session.execute(search_tbl, {"vector": vector_value, "limit": limit})
             records = results.fetchall()
             
             if not records:
