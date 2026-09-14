@@ -24,7 +24,7 @@ class ProcessController(BaseController):
     def get_file_extension(self, file_id: str):
         return os.path.splitext(file_id)[-1]
 
-    def get_file_loader(self, file_id:str):
+    def get_file_loader(self, file_id: str, content_type: str | None = None):
 
         file_extension =self.get_file_extension(file_id=file_id)
         file_path = os.path.join(self.project_path, file_id)
@@ -32,17 +32,20 @@ class ProcessController(BaseController):
         if not os.path.exists(file_path):
             return None
         
-        if file_extension == ExtensionType.TEXT.value:
+        if file_extension == ExtensionType.TEXT.value or content_type == "text/plain":
             return TextLoader(file_path, encoding='utf-8')
 
-        if file_extension == ExtensionType.PDF.value:
+        if file_extension == ExtensionType.PDF.value or content_type == "application/pdf":
             return PyMuPDFLoader(file_path)
 
         return None
 
-    def get_file_content(self, file_id: str):
+    def get_file_content(self, file_id: str, content_type: str | None = None):
         
-        loader = self.get_file_loader(file_id=file_id)
+        loader = self.get_file_loader(
+            file_id=file_id,
+            content_type=content_type,
+        )
         if loader is None:
             return None
         return loader.load()
