@@ -191,6 +191,7 @@ async def answer_rag_question(request: Request, project_id: int, search_request:
         query=search_request.query,
         limit=search_request.limit,
         min_score=search_request.min_score,
+        chat_history=search_request.chat_history
     )
 
     if answer is None:
