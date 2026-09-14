@@ -25,6 +25,12 @@ class QdrantDB(VectorDBInterface):
             self.distance_method = models.Distance.DOT
 
         self.logger = logging.getLogger("uvicorn")
+        
+    def _get_client(self) -> QdrantClient:
+        if self.client is None:
+            raise RuntimeError("Qdrant client is not connected")
+        
+        return self.client
 
     async def connect(self):
         self.client = QdrantClient(path=self.db_client)
@@ -33,29 +39,50 @@ class QdrantDB(VectorDBInterface):
         self.client = None
 
     async def is_collection_existed(self, collection_name: str) -> bool:
-        return self.client.collection_exists(collection_name=collection_name)
+        client = self._get_client()
+        return client.collection_exists(collection_name=collection_name)
 
     async def list_all_collections(self) -> list:
-        return self.client.get_collections().collections
+        client = self._get_client()
+        return client.get_collections().collections
 
     async def get_collection_info(self, collection_name: str) -> dict:
-        return self.client.get_collection(collection_name=collection_name).model_dump()
+        client = self._get_client()
+        return client.get_collection(collection_name=collection_name).model_dump()
 
     async def delete_collection(self, collection_name: str):
-        if self.client.collection_exists(collection_name=collection_name):
+        client = self._get_client()
+        if client.collection_exists(collection_name=collection_name):
             self.logger.info(f"Deleting collection: {collection_name}")
-            return self.client.delete_collection(collection_name=collection_name)
+            return client.delete_collection(collection_name=collection_name)
+
+    async def delete_by_record_ids(self, collection_name: str, record_ids: list[int]) -> bool:
+        client = self._get_client()
+        if not record_ids or not await self.is_collection_existed(collection_name):
+            return True
+
+        try:
+            client.delete(
+                collection_name=collection_name,
+                points_selector=models.PointIdsList(points=record_ids),
+                wait=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            self.logger.error(f"Error while deleting points: {e}")
+            return False
+
+        return True
 
     async def create_collection(self, collection_name:str,
                           embedding_size: int | None = None, do_reset: bool = False):
-
+        client = self._get_client()
         if do_reset:
             _ = await self.delete_collection(collection_name=collection_name)
 
         if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.info(f"Creating collection: {collection_name}")
             
-            self.client.create_collection(collection_name=collection_name,
+            client.create_collection(collection_name=collection_name,
                                       vectors_config=models.VectorParams(
                                       size=embedding_size,
                                       distance=self.distance_method))
@@ -66,7 +93,7 @@ class QdrantDB(VectorDBInterface):
     async def insert_one(self, collection_name: str, text: str, vector: list,
                    metadata: dict | None = None,
                    record_id: str | None = None):
-
+        client = self._get_client()
         if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
             return False
@@ -81,7 +108,7 @@ class QdrantDB(VectorDBInterface):
         )
 
         try:
-            _ = self.client.upsert(
+            _ = client.upsert(
                 collection_name=collection_name,
                 points=[point] 
             )
@@ -95,7 +122,8 @@ class QdrantDB(VectorDBInterface):
                    metadata: list | None = None,
                    record_ids: list | None = None, batch_size: int = 50):
 
-        if not self.is_collection_existed(collection_name=collection_name):
+        client = self._get_client()
+        if not await self.is_collection_existed(collection_name=collection_name):
             self.logger.error(f"Can not insert batch to non-existed collection: {collection_name}")
             return False
         
@@ -115,7 +143,7 @@ class QdrantDB(VectorDBInterface):
             ]
 
         try:
-            _ = self.client.upload_points(
+            _ = client.upload_points(
                 collection_name=collection_name,
                 points=points,
                 batch_size=batch_size,
@@ -128,8 +156,8 @@ class QdrantDB(VectorDBInterface):
         return True
 
     async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
-
-        hits = self.client.query_points(
+        client = self._get_client()
+        hits = client.query_points(
             collection_name=collection_name,
             query=vector,
             limit=limit,

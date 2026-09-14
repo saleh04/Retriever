@@ -34,4 +34,7 @@ class VectorDBProviderFactory:
                 index_threshold=self.config.VECTOR_DB_PGVC_INDEX_THRESHOLD
             )
 
-        return None
+        raise ValueError(
+            f"Unsupported vector database provider: {provider}. "
+            f"Expected PGVECTOR or QDRANT."
+        )
