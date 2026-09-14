@@ -1,6 +1,7 @@
 import logging  # noqa: N999
 
 from models.db_schemes import DataChunk, Project
+from routes.schema.nlp import ChatMessage
 from stores.llm.LLMEnums import DocumentTypeEnum
 
 from .BaseController import BaseController
@@ -96,7 +97,8 @@ class NLPController(BaseController):
 
     async def answer_rag_question(self, project: Project, query: str, limit: int = 5,
                                   max_chars_per_doc: int = 3000, min_score: float = 0.3,
-                                  chat_history: list[str] | None = None):
+                                  chat_history: list[ChatMessage] | None = None):
+        
         retrieved_docs = await self.search_in_vector_db(project=project, query=query, limit=limit, min_score=min_score)
 
         # Vector search failed due to error
@@ -131,8 +133,8 @@ class NLPController(BaseController):
             for turn in chat_history:
                 messages.append(
                     self.generation_client.construct_prompt(
-                        prompt=turn["content"],
-                        role=turn["role"]
+                        prompt=turn.content,
+                        role=turn.role,
                     )
                 )
 
