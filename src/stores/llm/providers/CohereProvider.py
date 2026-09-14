@@ -64,7 +64,7 @@ class CohereProvider(LLMInterface):
         try:
             response = await self.co.chat(
                 model = self.generation_model_id,
-                messages = chat_history,
+                messages = messages,
                 max_tokens = max_output_tokens,
                 temperature = temp
             )

@@ -1,8 +1,9 @@
 from helpers.config import Settings  # noqa: N999
 
 from .LLMEnums import LLMEnums
-from .providers.OpenAIProvider import OpenAIProvider
 from .providers.CohereProvider import CohereProvider
+from .providers.OpenAIProvider import OpenAIProvider
+
 
 class LLMProviderFactory:
     def __init__(self, config: Settings):
@@ -27,4 +28,7 @@ class LLMProviderFactory:
                 default_generation_temp=self.config.GENERATION_DEFAULT_TEMP
             )
 
-        return None
+        raise ValueError(
+            f"Unsupported LLM provider: {provider}. "
+            f"Expected OPENAI or COHERE."
+        )
