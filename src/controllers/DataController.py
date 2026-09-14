@@ -14,9 +14,12 @@ class DataController(BaseController):
         super().__init__()
         self.file_scale = 1048576 # Scale for converting bytes to MB
 
-    def validate_file(self, file: UploadFile):
+    def validate_file(self, file: UploadFile, header: bytes = b""):
         # Validate file type
         if file.content_type not in self.app_settings.FILE_ALLOWED_TYPES:
+            return False, ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
+
+        if file.content_type == "application/pdf" and not header.startswith(b"%PDF-"):
             return False, ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
             
         # Validate file size
