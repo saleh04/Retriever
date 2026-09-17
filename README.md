@@ -119,6 +119,7 @@ Edit `src/.env` before starting the application. At minimum, configure the datab
 | `FILE_ALLOWED_SIZES_MB` | Maximum upload size | `10` |
 | `FILE_DEFAULT_CHUNK_SIZE` | Upload read-buffer size | `512000` |
 | `INPUT_DEFAULT_MAX_CHARACTERS` | Maximum input size used by the app | `1024` |
+| `PROVIDER_BACKEND_LITERAL` | Allowed generation/embedding backend names | `["OPENAI", "COHERE"]` |
 | `PRIMARY_LANGUAGE` | Language for RAG templates | `en` |
 | `DEFAULT_LANGUAGE` | Fallback template language | `en` |
 
@@ -163,21 +164,23 @@ When using `QDRANT`, no separate Qdrant server is required. The application uses
 
 ## Start PostgreSQL with Docker
 
-Copy the Docker environment template:
+Copy the Docker environment templates used by the compose stack:
 
 Windows PowerShell:
 
 ```powershell
-Copy-Item docker\.env.example docker\.env
+Copy-Item docker\env\.env.example.postgres docker\env\.env.postgres
+Copy-Item docker\env\.env.example.app docker\env\.env.app
 ```
 
 macOS or Linux:
 
 ```bash
-cp docker/.env.example docker/.env
+cp docker/env/.env.example.postgres docker/env/.env.postgres
+cp docker/env/.env.example.app docker/env/.env.app
 ```
 
-Set `POSTGRES_PASSWORD` in `docker/.env`, then start the service:
+Set the database password in `docker/env/.env.postgres` and the app database settings in `docker/env/.env.app`, then start the service:
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
@@ -197,18 +200,18 @@ docker compose -f docker/docker-compose.yml down
 
 ## Run Database Migrations
 
-The migration configuration is in `src/models/db_schemes/minirag`. The repository currently names the migration directory `almbic`, and `alembic.ini` points to that directory.
+The migration configuration is in `src/models/db_schemes/Retriever`. This project uses an Alembic folder named `alembic`, and the configuration file at `src/models/db_schemes/Retriever/alembic.ini` points to that directory.
 
-Before running migrations, make sure the `sqlalchemy.url` value in `src/models/db_schemes/minirag/alembic.ini` matches the PostgreSQL credentials and database configured in `src/.env`.
+Before running migrations, make sure the `sqlalchemy.url` value in `src/models/db_schemes/Retriever/alembic.ini` matches the PostgreSQL credentials and database configured in `src/.env`.
 
 From the migration directory, run:
 
 ```bash
-cd src/models/db_schemes/minirag
+cd src/models/db_schemes/Retriever
 alembic upgrade head
 ```
 
-The initial migration creates the `projects`, `assets`, and `chunks` tables. The companion migration README uses `alembic` in a few paths, but the actual directory in this repository is `almbic`.
+The initial migration creates the `projects`, `assets`, and `chunks` tables. The actual Alembic directory in this repository is `src/models/db_schemes/Retriever/alembic`.
 
 ## Run the API
 
@@ -221,9 +224,11 @@ uvicorn main:app --reload --host 0.0.0.0 --port 5000
 
 The application is available at:
 
-- API base URL: `http://localhost:5000`
-- Swagger UI: `http://localhost:5000/docs`
-- Scalar API reference: `http://localhost:5000/scalar`
+- Local development API base URL: `http://localhost:5000`
+- Local development Swagger UI: `http://localhost:5000/docs`
+- Local development Scalar API reference: `http://localhost:5000/scalar`
+- Docker stack FastAPI service: `http://localhost:8000`
+- Docker Nginx entry point: `http://localhost:80`
 
 ## API Workflow
 
@@ -288,7 +293,7 @@ The response contains the generated `answer`. Complete the upload, process, and 
 
 - **Settings validation fails:** confirm that `src/.env` exists and that all required settings have values, including PostgreSQL host, port, database, and provider model IDs.
 - **The database cannot be reached:** confirm Docker is running, PostgreSQL is healthy, and the application uses host port `5433`, not container port `5432`.
-- **Migration errors:** run the migration from `src/models/db_schemes/minirag` and verify `alembic.ini` points to the existing `almbic` directory.
+- **Migration errors:** run the migration from `src/models/db_schemes/Retriever` and verify `alembic.ini` points to the existing `alembic` directory.
 - **Provider errors:** confirm the selected backend name is exactly `OPENAI` or `COHERE`, the matching API key is set, and the model ID and embedding size match the provider model.
 - **Search returns no results:** make sure the file was processed and then pushed to the vector index for the same project ID.
 - **Import or `.env` errors:** launch Uvicorn from `src`, not from the repository root.
