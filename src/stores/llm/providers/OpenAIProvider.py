@@ -1,6 +1,6 @@
 import logging  # noqa: N999
 
-from openai import OpenAI
+from openai import AsyncOpenAI as OpenAI
 
 from ..LLMEnums import OpenAIEnums
 from ..LLMInterface import LLMInterface
@@ -41,7 +41,7 @@ class OpenAIProvider(LLMInterface):
     def process_text(self, text: str):
         return text[:self.default_input_max_char].strip()
 
-    def generate_text(self, prompt: str, chat_history: list | None = None,
+    async def generate_text(self, prompt: str, chat_history: list | None = None,
                               max_output_tokens: int | None = None, temp: float | None = None):
         if not self.client:
             self.logger.error("OpenAI Client was not set")
@@ -61,7 +61,7 @@ class OpenAIProvider(LLMInterface):
             self.construct_prompt(role=OpenAIEnums.USER.value , prompt=prompt)
         )
 
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model = self.generation_model_id,
             messages = chat_history,
             max_tokens = max_output_tokens,
@@ -74,7 +74,7 @@ class OpenAIProvider(LLMInterface):
         
         return response.choices[0].message.content
 
-    def embed_text(self, text: str, document_type: str | None = None):
+    async def embed_text(self, text: str, document_type: str | None = None):
 
         if not self.client:
             self.logger.error("OpenAI Client was not set")
@@ -84,7 +84,7 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("Embedding Model for OpenAI was not set")
             return None
 
-        response = self.client.embeddings.create(
+        response = await self.client.embeddings.create(
             model = self.embedding_model_id,
             input = text
         )
@@ -95,13 +95,13 @@ class OpenAIProvider(LLMInterface):
 
         return response.data[0].embedding
 
-    def embed_batch_texts(self, texts: list[str], document_type: str | None = None):
+    async def embed_batch_texts(self, texts: list[str], document_type: str | None = None):
 
         if not self.client or not self.embedding_model_id:
             self.logger.error("OpenAI Client or Model not set")
             return None
 
-        response = self.client.embeddings.create(
+        response = await self.client.embeddings.create(
             model=self.embedding_model_id,
             input=texts
         )
@@ -115,5 +115,5 @@ class OpenAIProvider(LLMInterface):
     def construct_prompt(self, prompt:str, role:str):
         return {
             "role" : role,
-            "content" : self.process_text(text=prompt)
+            "content" : prompt
         }

@@ -24,9 +24,9 @@ class CohereProvider(LLMInterface):
         self.embedding_size: int | None = None
 
         if self.api_url:
-            self.co = cohere.ClientV2(api_key=self.api_key, base_url=self.api_url)
+            self.co = cohere.AsyncClientV2(api_key=self.api_key, base_url=self.api_url)
         else:
-            self.co = cohere.ClientV2(api_key=self.api_key)
+            self.co = cohere.AsyncClientV2(api_key=self.api_key)
 
         self.enum = CohereEnums
         self.logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class CohereProvider(LLMInterface):
     def process_text(self, text: str):
         return text[:self.default_input_max_char].strip()
 
-    def generate_text(self, prompt: str, chat_history: list | None = None,
+    async def generate_text(self, prompt: str, chat_history: list | None = None,
                         max_output_tokens: int | None = None, temp: float | None = None):
         
         if not self.co:
@@ -55,20 +55,22 @@ class CohereProvider(LLMInterface):
         max_output_tokens = max_output_tokens if max_output_tokens else self.default_generation_output_tokens
         temp = temp if temp else self.default_generation_temp
 
-        if chat_history is None:
-            chat_history= []
-
-        chat_history = [
-            self.construct_prompt(role=CohereEnums.USER.value , prompt=prompt)
-        ] + chat_history
-
-
-        response = self.co.chat(
-            model = self.generation_model_id,
-            messages = chat_history,
-            max_tokens = max_output_tokens,
-            temperature = temp
+        messages = list(chat_history) if chat_history else []
+        
+        messages.append(
+            self.construct_prompt(role=CohereEnums.USER.value, prompt=prompt)
         )
+
+        try:
+            response = await self.co.chat(
+                model = self.generation_model_id,
+                messages = messages,
+                max_tokens = max_output_tokens,
+                temperature = temp
+            )
+        except Exception as e:  # noqa: BLE001
+            self.logger.error(f"Error while generating text with Cohere: {e}")
+            return None
 
         if not response or not response.message or not response.message.content:
             self.logger.error("Error while generating text with Cohere")
@@ -76,7 +78,7 @@ class CohereProvider(LLMInterface):
         
         return response.message.content[0].text
 
-    def embed_text(self, text: str, document_type: str | None = None):
+    async def embed_text(self, text: str, document_type: str | None = None):
 
         if not self.co:
             self.logger.error("Cohere Client was not set")
@@ -90,7 +92,7 @@ class CohereProvider(LLMInterface):
         if document_type == DocumentTypeEnum.QUERY.value:
             input_type = CohereEnums.QUERY.value
 
-        response = self.co.embed(
+        response = await self.co.embed(
             texts = [self.process_text(text)],
             model = self.embedding_model_id,
             input_type = input_type,
@@ -103,7 +105,7 @@ class CohereProvider(LLMInterface):
 
         return response.embeddings.float[0]
 
-    def embed_batch_texts(self, texts: list[str], document_type: str | None = None):
+    async def embed_batch_texts(self, texts: list[str], document_type: str | None = None):
 
         if not self.co or not self.embedding_model_id:
             self.logger.error("Cohere Client or Model not set")
@@ -113,7 +115,7 @@ class CohereProvider(LLMInterface):
         if document_type == DocumentTypeEnum.QUERY.value:
             input_type = CohereEnums.QUERY.value
 
-        response = self.co.embed(
+        response = await self.co.embed(
             texts = [self.process_text(text) for text in texts],
             model = self.embedding_model_id,
             input_type = input_type,
@@ -129,5 +131,5 @@ class CohereProvider(LLMInterface):
     def construct_prompt(self, prompt:str, role:str):
         return {
             "role" : role,
-            "content" : self.process_text(text=prompt)
+            "content" : prompt
         }

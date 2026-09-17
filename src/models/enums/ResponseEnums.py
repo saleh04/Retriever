@@ -11,6 +11,7 @@ class ResponseSignal(Enum):
     FILE_ID_ERROR = "no_file_found_with_this_id"
     PROCESSING_FAILED = "file_processing_failed"
     PROCESSING_SUCCESS = "file_processing_success"
+    ALREADY_PROCESSED = "Already processed. Use do_reset=true to reprocess."
 
     NO_FILE_ERROR = "not_found_files"
 
@@ -18,6 +19,7 @@ class ResponseSignal(Enum):
 
     VECTOR_DB_INSERTION_ERROR = "vector_db_insertion_failed"
     VECTOR_DB_INSERTION_SUCCESS = "vector_db_insertion_success"
+    VECTOR_DB_DELETION_ERROR = "vector_db_deletion_failed"
 
     COLLECTION_INFO_SUCCESS = "collection_info_retrieved_successfully"
 
