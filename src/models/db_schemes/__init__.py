@@ -1,1 +1,1 @@
-from models.db_schemes.minirag.schemes import Asset, DataChunk, Project, RetrievedDocument  # noqa: F401
+from models.db_schemes.Retriever.schemes import Asset, DataChunk, Project, RetrievedDocument  # noqa: F401
