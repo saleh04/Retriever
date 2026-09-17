@@ -10,6 +10,7 @@ from routes import base, data, nlp
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
+from utils.metrics import setup_metrics
 
 
 @asynccontextmanager
@@ -50,6 +51,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+setup_metrics(app)
 
 @app.get("/scalar", include_in_schema=False)
 def scalar_docs():
