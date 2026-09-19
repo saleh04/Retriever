@@ -32,6 +32,6 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 def setup_metrics(app: FastAPI):
     app.add_middleware(PrometheusMiddleware)
     
-    @app.get("/f0553bc7-a381-4f43", include_in_schema=False)
+    @app.get("/fc7-a381-4f43", include_in_schema=False)
     async def metrics():
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
