@@ -43,12 +43,13 @@ class PgVectorDB(VectorDBInterface):
             return "<#>"
         
     async def connect(self):
-        async with self.db_client() as session:
-            async with session.begin():
-                await session.execute(sql_text(
-                    "CREATE EXTENSION IF NOT EXISTS vector"
-                ))
-            await session.commit()
+        async with self.db_client() as session, session.begin():
+            await session.execute(sql_text(
+                "SELECT pg_advisory_xact_lock(hashtext('retriever.vector_extension'))"
+            ))
+            await session.execute(sql_text(
+                "CREATE EXTENSION IF NOT EXISTS vector"
+            ))
                 
     async def disconnect(self):
         pass
