@@ -41,7 +41,3 @@ jobs:
               echo "Service failed to start on port 80"
               exit 1
             fi
-
-
-
-
