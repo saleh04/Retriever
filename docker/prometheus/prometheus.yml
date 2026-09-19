@@ -7,7 +7,7 @@ scrape_configs:
   - job_name: "fastapi"
     static_configs:
       - targets: ["fastapi:8000"]
-    metrics_path: "/f0553bc7-a381-4f43"
+    metrics_path: "/fc7-a381-4f43"
 
   - job_name: "qdrant"
     static_configs:
